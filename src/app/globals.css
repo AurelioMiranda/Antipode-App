@@ -3,31 +3,77 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --input-bg-color: #ffffff;
+  --input-text-color: #000000;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+.dark :root {
+  --input-bg-color: #1f2937;
+  --input-text-color: #C1C2C5;;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: #1f2937;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 3;
+}
+
+footer {
+  padding: 30px;
+  background: #252525;
+  display: flex!important;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+
+footer p {
+  width: fit-content;
+  margin: 2px;
+  color: #C1C2C5;;
+}
+
+footer div {
+  display: flex;
+  align-items: center;
+  margin: 0px 5px;
+}
+
+footer div a {
+  filter: invert(1);
+}
+
+footer div a {
+  margin-left: 10px;
+}
+
+footer div a:hover {
+  filter: invert(9%) invert(21%) sepia(18%) saturate(7220%) hue-rotate(254deg) brightness(96%) contrast(88%);
+}
+
+/* Scroll bar styles and stuff */
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #252525;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
