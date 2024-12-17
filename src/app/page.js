@@ -1,7 +1,7 @@
 "use client";
 
-import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api";
-import { useState } from "react";
+import { GoogleMap, useLoadScript, Marker, InfoWindow } from "@react-google-maps/api";
+import { useState, useEffect } from "react";
 
 const mapContainerStyle = {
   width: "75vw",
@@ -11,12 +11,16 @@ const mapContainerStyle = {
 export default function Home() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: ["places"], // Load places library for search functionality
   });
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
   const [antipodeLocation, setAntipodeLocation] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isInfoWindowOpen, setIsInfoWindowOpen] = useState(false);
+  const [isAntipodeWindowOpen, setIsAntipodeWindowOpen] = useState(false);
+  const [savedLocations, setSavedLocations] = useState([]);
 
   const onMapClick = (event) => {
     const location = {
@@ -25,6 +29,7 @@ export default function Home() {
     };
     setSelectedLocation(location);
     setCenter(location);
+    setIsInfoWindowOpen(false);
   };
 
   const getAntipode = (lat, lng) => {
@@ -48,40 +53,69 @@ export default function Home() {
   };
 
   const handleToggleDarkMode = () => {
-    const newTheme = isDarkMode ? 'light' : 'dark';
+    const newTheme = isDarkMode ? "light" : "dark";
     setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark', !isDarkMode);
+    document.documentElement.classList.toggle("dark", !isDarkMode);
     document.body.style.backgroundColor = newTheme === "dark" ? "#1f2937" : "aliceblue";
-    localStorage.setItem('theme', newTheme);
+    localStorage.setItem("theme", newTheme);
   };
+
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        const userLocation = { lat: latitude, lng: longitude };
+        setSelectedLocation(userLocation);
+        setCenter(userLocation);
+      });
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
+  };
+
+  const searchLocation = (query) => {
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ address: query }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const location = results[0].geometry.location;
+        setSelectedLocation({ lat: location.lat(), lng: location.lng() });
+        setCenter({ lat: location.lat(), lng: location.lng() });
+      } else {
+        alert("Location not found.");
+      }
+    });
+  };
+
+  const saveLocation = () => {
+    if (selectedLocation) {
+      const newSavedLocations = [...savedLocations, selectedLocation];
+      setSavedLocations(newSavedLocations);
+      localStorage.setItem("savedLocations", JSON.stringify(newSavedLocations));
+    }
+  };
+
+  useEffect(() => {
+    const storedLocations = localStorage.getItem("savedLocations");
+    if (storedLocations) {
+      setSavedLocations(JSON.parse(storedLocations));
+    }
+  }, []);
 
   if (loadError) return "Error loading maps";
   if (!isLoaded) return "Loading Maps";
 
   return (
-    <div style={{ height: '100vh' }}>
-      <nav className={`nav ${isDarkMode ? 'bg-gray-900 text-white' : 'text-black'}`}
-        style={{ backgroundColor: isDarkMode ? 'rgb(17 24 39 / var(--tw-bg-opacity))' : 'skyblue' }}>
+    <div style={{ height: "100vh" }}>
+      <nav className={`nav ${isDarkMode ? "bg-gray-900 text-white" : "text-black"}`} style={{ backgroundColor: isDarkMode ? "rgb(17 24 39 / var(--tw-bg-opacity))" : "skyblue" }}>
         <h1 className="text-3xl font-bold m-2">Antipode Explorer</h1>
-        <button
-          onClick={handleToggleDarkMode}
-          className="m-2 px-4 py-2 border rounded-md bg-gray-800 text-white dark:bg-gray-200 dark:text-black"
-        >
-          {isDarkMode ? (
-            <img src="/sun.png" alt="Light Mode" width="20" height="20" />
-          ) : (
-            <img src="/moon.png" alt="Dark Mode" width="20" height="20"
-              style={{}} />
-          )}
+        <button onClick={handleToggleDarkMode} className="m-2 px-4 py-2 border rounded-md bg-gray-800 text-white dark:bg-gray-200 dark:text-black">
+          {isDarkMode ? <img src="/sun.png" alt="Light Mode" width="20" height="20" /> : <img src="/moon.png" alt="Dark Mode" width="20" height="20" />}
         </button>
       </nav>
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '80px' }}>
-
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "80px" }}>
         <div className="introduction-container mx-auto max-w-4xl p-8 text-center">
-          <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-black"}`}>
-            Welcome to the Antipode Explorer
-          </h2>
+          <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-black"}`}>Welcome to the Antipode Explorer</h2>
           <p className={`text-lg mb-6 ${isDarkMode ? "text-gray-300" : "text-gray-800"}`}>
             Have you ever wondered what lies directly on the other side of the Earth? This is the exact question that our app,
             <strong> Antipode Explorer</strong>, seeks to answer! An "antipode" refers to the point on the Earth's surface that is
@@ -94,37 +128,59 @@ export default function Home() {
             forth between the original spot and its antipode. Whether you're just curious, exploring for fun, or trying to learn more
             about geography, this tool is here to help.
           </p>
-          <p className={`text-lg mb-6 ${isDarkMode ? "text-gray-300" : "text-gray-800"}`}>
-            <strong> Please note: The map is currently in developer mode and will be updated soon after I resolve some bank-related issues.</strong>
-          </p>
-          <p className={`text-lg ${isDarkMode ? "text-gray-300" : "text-gray-800"}`} id="anti-map">
-            Thank you for your understanding and patience as we continue to improve the app. Feel free to explore and check back soon
-            for updates!
-          </p>
+          {/*<div>
+            <input
+              type="text"
+              placeholder="Search for a city or coordinates"
+              onKeyDown={(e) => e.key === "Enter" && searchLocation(e.target.value)}
+              className="mt-4 p-2 border rounded-md"
+            />
+          </div>*/}
         </div>
 
-
-
-        <div style={{}}>
-          <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            zoom={3}
-            center={center}
-            onClick={onMapClick}
-          >
-            {selectedLocation && <Marker position={selectedLocation} />}
+        <div>
+          <GoogleMap mapContainerStyle={mapContainerStyle} zoom={3} center={center} onClick={onMapClick}>
+            {selectedLocation && (
+              <Marker position={selectedLocation} onClick={() => setIsInfoWindowOpen(true)}>
+                {isInfoWindowOpen && (
+                  <InfoWindow position={selectedLocation} onCloseClick={() => setIsInfoWindowOpen(false)}>
+                    <div>
+                      <h3>Selected Location</h3>
+                      <p>Latitude: {selectedLocation.lat}</p>
+                      <p>Longitude: {selectedLocation.lng}</p>
+                    </div>
+                  </InfoWindow>
+                )}
+              </Marker>
+            )}
             {antipodeLocation && (
               <Marker
                 position={antipodeLocation}
-                icon={{
-                  url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                }}
-              />
+                icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
+                onClick={() => setIsAntipodeWindowOpen(true)}
+              >
+                {isAntipodeWindowOpen && (
+                  <InfoWindow position={antipodeLocation} onCloseClick={() => setIsAntipodeWindowOpen(false)}>
+                    <div>
+                      <h3>Antipode Location</h3>
+                      <p>Latitude: {antipodeLocation.lat}</p>
+                      <p>Longitude: {antipodeLocation.lng}</p>
+                    </div>
+                  </InfoWindow>
+                )}
+              </Marker>
             )}
           </GoogleMap>
         </div>
 
-        <div style={{ marginTop: '30px' }}>
+        <div style={{ marginTop: "30px", marginBottom: "30px" }}>
+          <button
+            onClick={getUserLocation}
+            className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:ring focus:ring-green-300 transition-colors duration-300"
+            style={{ marginRight: '20px' }}>
+            Use My Location
+          </button>
+
           {selectedLocation && (
             <button
               onClick={goToAntipode}
@@ -138,12 +194,19 @@ export default function Home() {
               onClick={goBackToMarker}
               className="px-6 py-2 ml-4 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring focus:ring-gray-300 transition-colors duration-300"
             >
-              Go Back
+              Back to Marker
             </button>
           )}
         </div>
-        <br></br>
-        <br></br>
+
+        {/*<div style={{ marginTop: "20px" }}>
+          <button
+            onClick={saveLocation}
+            className="px-6 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:ring focus:ring-purple-300 transition-colors duration-300"
+          >
+            Save Location
+          </button>
+        </div>*/}
       </div>
 
       <footer>
@@ -162,11 +225,6 @@ export default function Home() {
             <img maw={240} width="25" height="25"
               src="https://cdn-icons-png.flaticon.com/512/61/61109.png"
               alt="LinkedIn" />
-          </a>
-          <a href="https://www.facebook.com/profile.php?id=100008999912309" target="_blank" rel="noopener noreferrer">
-            <img maw={240} width="25" height="25"
-              src="https://upload.wikimedia.org/wikipedia/commons/0/0c/Facebook%2BIcon%2BBlack.png"
-              alt="Facebook" />
           </a>
           <a href="mailto:aureliogaboleiro49@gmail.com">
             <img maw={240} width="25" height="auto"
